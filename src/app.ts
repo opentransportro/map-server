@@ -112,7 +112,13 @@ const startService = async () => {
     if (!tile || !tile.features) {
       return;
     }
-    const data = Buffer.from(vtpbf.fromGeojsonVt({ stations: tile }));
+
+    var data;
+    if(req.params.layer =="romania-stop-map") {  // workarround that needs to be removed later
+      data = Buffer.from(vtpbf.fromGeojsonVt({ stops: tile }));
+    } else {
+      data = Buffer.from(vtpbf.fromGeojsonVt({ stations: tile }));
+    }
     res.setHeader("Content-Type", "application/x-protobuf");
     res.setHeader("Content-Encoding", "gzip");
 
