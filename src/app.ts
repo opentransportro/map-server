@@ -29,8 +29,8 @@ const startService = async () => {
   }
 
   registerLayer("romania-citybike-map", new BikesLayer());
-  registerLayer("stop-map", new StopsLayer());
-  registerLayer("station-map", new StationLayer());
+  registerLayer("romania-stop-map", new StopsLayer());
+  registerLayer("romania-station-map", new StationLayer());
 
 
   const app = express();
@@ -74,21 +74,14 @@ const startService = async () => {
 
   const getTile = (req: Request, res: Response) => {
     const layer = req.params.layer;
-    if (!tileIndexes.hasOwnProperty(layer) && layer != "romania-stop-map") {
+    if (!tileIndexes.hasOwnProperty(layer)) {
       send404(res);
       return emptyResponse;
     }
     const z = +req.params.z;
     const x = +req.params.x;
     const y = +req.params.y;
-    var tile = undefined;
-    if(layer != "romania-stop-map") {
-      tile = {stations: tileIndexes[layer].getTile(z, x, y)};
-    } else {
-      var stopTile = tileIndexes["stop-map"].getTile(z, x, y)
-      var stationTile = tileIndexes["station-map"].getTile(z, x, y)
-      tile = {stops: stopTile, stations: stationTile};
-    }
+    const tile = tileIndexes[layer].getTile(z, x, y);
     return { tile, x, y, z };
   };
 
@@ -97,20 +90,20 @@ const startService = async () => {
 
   app.get("/:layer/:z/:x/:y.geojson", (req, res) => {
     const { tile, x = 0, y = 0, z = 0 } = getTile(req, res);
-    if (!tile || !tile.stations.features) {
+    if (!tile || !tile.features) {
       res.json({});
       return;
     }
-    const vectorTiles = tile.stations.features as IVectorTile[];
+    const vectorTiles = tile.features as IVectorTile[];
     res.json(toFeatureCollection(vectorTiles, x, y, z, extent));
   });
 
   app.get("/:layer/:z/:x/:y.vt", (req, res) => {
     const { tile } = getTile(req, res);
-    if (!tile || !tile.stations.features) {
+    if (!tile || !tile.features) {
       return;
     }
-    const vectorTiles = tile.stations.features as IVectorTile[];
+    const vectorTiles = tile.features as IVectorTile[];
     res.json(vectorTiles);
   });
 
@@ -119,7 +112,7 @@ const startService = async () => {
     if (!tile || !tile.features) {
       return;
     }
-    const data = Buffer.from(vtpbf.fromGeojsonVt(tile));
+    const data = Buffer.from(vtpbf.fromGeojsonVt({ stations: tile }));
     res.setHeader("Content-Type", "application/x-protobuf");
     res.setHeader("Content-Encoding", "gzip");
 
