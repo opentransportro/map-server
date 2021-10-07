@@ -45,11 +45,10 @@ docker build --tag=$DOCKER_IMAGE -f Dockerfile .
 
 echo Running $DOCKER_IMAGE
 docker run --rm -p 8080:8080 -h map-server --name map-server $DOCKER_IMAGE &
-sleep 60
+sleep 30
 
-
-test http://localhost:8080/romania-citybike-map/13/4577/2922.pbf 110
-test http://localhost:8080/romania-stop-map/13/4580/2922.pbf 2000
+test http://localhost:8080/romania-citybike-map/13/4577/2922.pbf 37
+test http://localhost:8080/romania-stop-map/13/4580/2922.pbf 37
 test http://localhost:8080/romania-station-map/13/4580/2922.pbf 32
 
 echo Stopping $DOCKER_IMAGE

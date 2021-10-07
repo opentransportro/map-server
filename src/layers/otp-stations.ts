@@ -73,8 +73,8 @@ const getTileIndex = (url, query, mapper, callback) => {
       return;
     }
     callback(null, geojsonvt(mapper(JSON.parse(body)), {
-      maxZoom: 20,
-      buffer: 1024,
+      maxZoom: 22,
+      buffer: 512,
     }));
   })
 }

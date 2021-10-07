@@ -57,8 +57,8 @@ export class BikesLayer implements ILayer {
       }
 
       this.tileIndex = geojsonvt(geoJSON, {
-        maxZoom: 20,
-        buffer: 1024
+        maxZoom: 22,
+        buffer: 256
       });
       console.log("city bikes loaded from:", uri)
       callback(null, this)
