@@ -74,10 +74,10 @@ export class StopsLayer  {
     this.stopTileIndex = geojsonvt(stopMapper(result.data), {
       maxZoom: 22,
       extent: 4096,
-      debug: 0,
+      debug: 2,
       generateId: true,
       indexMaxZoom: 4,
-      buffer: 4096,
+      buffer: 1024,
       indexMaxPoints: 100000,
       solidChildren: false,
     });

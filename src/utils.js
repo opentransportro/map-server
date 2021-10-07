@@ -1,7 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as geojsonvt from 'geojson-vt';
-import { Point, LineString, Polygon } from 'geojson';
+
+const GeometryType = {
+  Unknown: 0, Point: 1, LineString: 2, Polygon: 3
+};
+
 
 
 /**
@@ -77,11 +81,9 @@ const toGeoJSON = (feature, x, y, z, extent) => {
   const size = extent * Math.pow(2, z);
   const x0 = extent * x;
   const y0 = extent * y;
-  let projectedCoordinates = [];
-  let coords = feature.geometry;
-  let type = [feature.type];
-  // let type = feature.type;
-  // let i, j;
+  var projectedCoordinates = [];
+  var coords = feature.geometry;
+  var type = [feature.type];
 
   const project = (line) => {
     const projected = [];
@@ -97,18 +99,19 @@ const toGeoJSON = (feature, x, y, z, extent) => {
   };
 
   switch (feature.type) {
-    case Point:
+    case GeometryType.Point:
+      type = 'Point';
       projectedCoordinates = project(coords);
       break;
 
-    case LineString:
+    case GeometryType.LineString:
       type = 'LineString';
       for (let i = 0; i < coords.length; i++) {
         projectedCoordinates[i] = project(coords[i]);
       }
       break;
 
-    case Polygon:
+    case GeometryType.Polygon:
       type = 'Polygon';
       coords = classifyRings(coords);
       for (let i = 0; i < coords.length; i++) {

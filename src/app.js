@@ -118,7 +118,7 @@ const startService = async () => {
     if(req.params.layer =="romania-stop-map") {  // workarround that needs to be removed later
       geojsonData = { stops: tile };
     }
-    const data = Buffer.from(vtpbf.fromGeojsonVt(geojsonData, { extent: 2048 }));
+    const data = Buffer.from(vtpbf.fromGeojsonVt(geojsonData));
 
     res.setHeader("Content-Type", "application/x-protobuf");
     res.setHeader("Content-Encoding", "gzip");
