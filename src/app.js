@@ -124,7 +124,7 @@ const startService = async () => {
     res.setHeader("Content-Encoding", "gzip");
 
     /** Notice that I set the source-layer (for Mapbox GL) to all */
-    res.send(zlib.gzipSync(data, { level: 9 }));
+    res.send(zlib.gzipSync(data));
   });
 
   // start the Express server
