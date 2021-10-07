@@ -1,44 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as geojsonvt from 'geojson-vt';
-import { GeometryObject, GeoJsonProperties, Feature, LineString, Polygon, Point, FeatureCollection } from 'geojson';
+import { Point, LineString, Polygon } from 'geojson';
 
-
-enum GeometryType {
-  Unknown = 0, Point = 1, LineString = 2, Polygon = 3
-};
-
-export interface IVectorTile {
-  geometry: number[][] | number[][][] | number[][][][];
-  type: number;
-  tags: { [key: string]: string | number };
-}
-
-
-export interface IGeojsonVTOptions {
-  /** max zoom to preserve detail on; can't be higher than 24 */
-  maxZoom?: number;
-  /** simplification tolerance (higher means simpler) */
-  tolerance?: number;
-  /** tile extent (both width and height) - this needs to match the value that is used in vt2geojson.ts */
-  extent?: number;
-  /** tile buffer on each side */
-  buffer?: number;
-  /** logging level (0 to disable, 1 or 2) */
-  debug?: 0 | 1 | 2;
-  /** whether to enable line metrics tracking for LineString/MultiLineString features */
-  lineMetrics?: false;
-  /** name of a feature property to promote to feature.id. Cannot be used with `generateId` */
-  promoteId?: string;
-  /** whether to generate feature ids. Cannot be used with `promoteId` */
-  generateId?: boolean;
-  /** max zoom in the initial tile index?: if indexMaxZoom === maxZoom, and indexMaxPoints === 0, pre-generate all tiles */
-  indexMaxZoom?: number;
-  /** max number of points per tile in the index */
-  indexMaxPoints?: number;
-  /** whether to include solid tile children in the index */
-  solidChildren?: boolean;
-}
 
 /**
  * Load a GeoJSON file
@@ -46,7 +10,7 @@ export interface IGeojsonVTOptions {
  * @param {string} file
  * @returns
  */
-export const loadGeoJSON = (file: string) => {
+export const loadGeoJSON = (file) => {
   return new Promise<JSON>((resolve, reject) => {
     fs.readFile(file, 'utf-8', (err, data) => {
       if (err) {
@@ -64,7 +28,7 @@ export const loadGeoJSON = (file: string) => {
  * @param {string} folder
  * @returns
  */
-export const findGeojsonFilesInFolder = (folder: string) => {
+export const findGeojsonFilesInFolder = (folder) => {
   return fs
     .readdirSync(folder)
     .map(f => path.join(folder, f))
@@ -80,7 +44,7 @@ export const findGeojsonFilesInFolder = (folder: string) => {
  * @param {string} filename
  * @returns
  */
-export const createTileIndex = async (filename: string, options?: IGeojsonVTOptions) => {
+export const createTileIndex = async (filename, options) => {
   const geoJSON = await loadGeoJSON(filename);
   return geojsonvt(
     geoJSON,
@@ -95,32 +59,32 @@ export const createTileIndex = async (filename: string, options?: IGeojsonVTOpti
         indexMaxZoom: 4,
         indexMaxPoints: 100000,
         solidChildren: false,
-      } as IGeojsonVTOptions,
+      },
       options
     )
   );
 };
 
 
-export const toFeatureCollection = (features: IVectorTile[], x: number, y: number, z: number, extent = 4096): FeatureCollection<GeometryObject, GeoJsonProperties> => {
+export const toFeatureCollection = (features, x, y, z, extent = 4096) => {
   return {
     type: 'FeatureCollection',
     features: features.map(f => toGeoJSON(f, x, y, z, extent))
   };
 };
 
-const toGeoJSON = (feature: IVectorTile, x: number, y: number, z: number, extent: number) => {
+const toGeoJSON = (feature, x, y, z, extent) => {
   const size = extent * Math.pow(2, z);
   const x0 = extent * x;
   const y0 = extent * y;
-  let projectedCoordinates: number[][] | number[][][] | number[][][][] = [];
+  let projectedCoordinates = [];
   let coords = feature.geometry;
-  let type = GeometryType[feature.type as GeometryType];
+  let type = [feature.type];
   // let type = feature.type;
   // let i, j;
 
-  const project = (line: number[][]) => {
-    const projected: number[][] = [];
+  const project = (line) => {
+    const projected = [];
     for (let j = 0; j < line.length; j++) {
       const p = line[j];
       const y2 = 180 - (p[1] + y0) * 360 / size;
@@ -133,36 +97,36 @@ const toGeoJSON = (feature: IVectorTile, x: number, y: number, z: number, extent
   };
 
   switch (feature.type) {
-    case GeometryType.Point:
-      projectedCoordinates = project(coords as number[][]);
+    case Point:
+      projectedCoordinates = project(coords);
       break;
 
-    case GeometryType.LineString:
+    case LineString:
       type = 'LineString';
       for (let i = 0; i < coords.length; i++) {
-        projectedCoordinates[i] = project(coords[i] as number[][]);
+        projectedCoordinates[i] = project(coords[i]);
       }
       break;
 
-    case GeometryType.Polygon:
+    case Polygon:
       type = 'Polygon';
-      coords = classifyRings(coords as number[][][]);
+      coords = classifyRings(coords);
       for (let i = 0; i < coords.length; i++) {
         projectedCoordinates[i] = [];
         for (let j = 0; j < coords[i].length; j++) {
-          projectedCoordinates[i][j] = project(coords[i][j] as number[][]);
+          projectedCoordinates[i][j] = project(coords[i][j]);
         }
       }
       break;
   }
 
   if (projectedCoordinates.length === 1) {
-    projectedCoordinates = projectedCoordinates[0] as number[][];
+    projectedCoordinates = projectedCoordinates[0];
   } else {
     type = 'Multi' + type;
   }
 
-  const result: Feature<any> = {
+  const result = {
     type: 'Feature',
     geometry: {
       type: type,
@@ -176,13 +140,13 @@ const toGeoJSON = (feature: IVectorTile, x: number, y: number, z: number, extent
 
 // classifies an array of rings into polygons with outer rings and holes
 
-const classifyRings = (rings: number[][][]) => {
+const classifyRings = (rings) => {
   const len = rings.length;
 
   if (len <= 1) return [rings];
 
   const polygons = [];
-  let polygon: number[][][] = [];
+  let polygon = [];
   let ccw;
 
   for (let i = 0; i < len; i++) {
@@ -203,7 +167,7 @@ const classifyRings = (rings: number[][][]) => {
   return polygons;
 };
 
-const signedArea = (ring: number[][]) => {
+const signedArea = (ring) => {
   let sum = 0;
   for (let i = 0, len = ring.length, j = len - 1, p1, p2; i < len; j = i++) {
     p1 = ring[i];

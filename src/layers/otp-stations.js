@@ -1,13 +1,9 @@
 import geojsonvt from 'geojson-vt';
-import { post } from "requestretry";
 import _ from 'lodash';
-import { ILayer, ILayerInfo, LayerFormat } from './layer';
+import axios from 'axios';
+import axiosRetry from 'axios-retry';
 
-declare global {
-  interface Array<T> {
-    uniq(): Array<T>;
-  }
-}
+axiosRetry(axios, { retries: 3, retryDelay: axiosRetry.exponentialDelay });
 
 Array.prototype.flatMap = function (lambda) {
   return [].concat.apply([], this.map(lambda));
@@ -18,7 +14,7 @@ Array.prototype.uniq = function () {
 };
 
 
-const stationQuery: String = `
+const stationQuery = `
   query stations{
     stations{
       gtfsId
@@ -54,48 +50,26 @@ const stationMapper = data => ({
   }))
 })
 
-const getTileIndex = (url, query, mapper, callback) => {
-  post({
-    url: url,
-    body: query,
-    maxAttempts: 120,
-    retryDelay: 30000,
-    method: 'POST',
-    headers: {
+
+export class StationLayer {
+
+  async init(uri) {
+    const result = await axios.post(uri, stationQuery, {headers:{
       'Content-Type': 'application/graphql',
       'OTPTimeout': '60000',
       'OTPMaxResolves': '100000000'
-    }
-  }, function (err, res, body) {
-    if (err) {
-      console.log(err)
-      callback(err);
-      return;
-    }
-    callback(null, geojsonvt(mapper(JSON.parse(body)), {
+    }});
+    
+    this.stationTileIndex = geojsonvt(stationMapper(result.data), {
       maxZoom: 22,
       buffer: 512,
-    }));
-  })
-}
+    });
 
-export class StationLayer implements ILayer {
-  stationTileIndex: any
-
-  init(uri: string, callback?: Function) {
-    getTileIndex(uri, stationQuery, stationMapper, (err: any, stationTileIndex: any) => {
-      if (err) {
-        callback(err);
-        return;
-      }
-      this.stationTileIndex = stationTileIndex;
-      console.log("stations loaded from:", uri)
-      callback(null, this);
-    })
+    console.log("stations loaded from:", uri);
   };
 
 
-  getTile(z: Number, x: Number, y: Number) {
+  getTile(z, x, y) {
     let stationTile = this.stationTileIndex.getTile(z, x, y)
 
     if (stationTile === null) {
@@ -105,9 +79,9 @@ export class StationLayer implements ILayer {
     return stationTile;
   }
 
-  getInfo(): ILayerInfo {
+  getInfo() {
     return {
-      format: LayerFormat.PBF,
+      format: "pbf",
       maxzoom: 20,
       minzoom: 0,
       vector_layers: [

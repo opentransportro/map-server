@@ -14,5 +14,5 @@ COPY . ${WORK}
 
 RUN yarn build
 
-CMD ["yarn", "serve"]
+CMD ["yarn", "start"]
 EXPOSE 8080

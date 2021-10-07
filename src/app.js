@@ -1,14 +1,12 @@
-import express, { Request, Response } from "express";
+import express from "express";
 import * as vtpbf from "vt-pbf";
 import cors from "cors";
+import schedule from "node-schedule";
 import * as zlib from "zlib";
 import { BikesLayer } from "./layers/otp-bikes";
 import { StopsLayer } from "./layers/otp-stops";
-import { ILayer } from "./layers/layer";
-import { IVectorTile, toFeatureCollection } from "./utils";
 import { StationLayer } from "./layers/otp-stations";
-
-// "https://api.opentransport.ro/routing/v1/routers/romania/index/graphql"
+import { toFeatureCollection } from "./utils";
 
 /** GeojsonVT extent option */
 const extent = 4096;
@@ -18,12 +16,9 @@ const emptyResponse = { tile: undefined, x: 0, y: 0, z: 0 };
 console.log("Starting service...");
 
 const startService = async () => {
-  const registeredLayers: Array<{
-    name: string;
-    layer: ILayer;
-  }> = [];
+  const registeredLayers = [];
 
-  const registerLayer = (name: string, layer: ILayer) => {
+  const registerLayer = (name, layer) => {
     console.log(`Registering layer ${name}`);
     registeredLayers.push({ name, layer });
   }
@@ -35,8 +30,8 @@ const startService = async () => {
 
   const app = express();
   app.use(cors());
+
   const httpPort = process.env.PORT || 8080; // default port to listen
-  app.use(express.static(process.env.PUBLIC_FOLDER || "public"));
 
   const extensions = [
     "geojson",
@@ -44,20 +39,26 @@ const startService = async () => {
     "vt",
   ];
 
-  const ulList = (l: string) =>
-    "<ul>" +
-    extensions.map((ext) => `<li>${l}/{z}/{x}/{y}.${ext}</li>`).join("\n") +
-    "</ul>";
+  const ulList = (l) =>
+    "<ul>" + extensions.map((ext) => `<li>${l}/{z}/{x}/{y}.${ext}</li>`).join("\n") + "</ul>";
 
-  const tileIndexes: { [key: string]: ILayer } = {};
+  const tileIndexes = {};
 
   registeredLayers.forEach((registeredLayer) => {
     const { name, layer } = registeredLayer;
     tileIndexes[name] = layer;
-    layer.init(process.env.OTP_URL || "https://api.opentransport.ro/routing/v1/routers/romania/index/graphql", () => { });
+    layer.init(process.env.OTP_URL || "https://api.opentransport.ro/routing/v1/routers/romania/index/graphql");
   })
 
-  const send404 = (res: Response) => {
+  schedule.scheduleJob('* * */6 * * *', function () {
+    console.log('Updated all...' + (new Date()).toString());
+    registeredLayers.forEach((registeredLayer) => {
+      const { layer } = registeredLayer;
+      layer.init(process.env.OTP_URL || "https://api.opentransport.ro/routing/v1/routers/romania/index/graphql");
+    })
+  });
+
+  const send404 = (res) => {
     const availableLayers = Object.keys(tileIndexes);
     const list = availableLayers
       .sort()
@@ -72,7 +73,7 @@ const startService = async () => {
   };
 
 
-  const getTile = (req: Request, res: Response) => {
+  const getTile = (req, res) => {
     const layer = req.params.layer;
     if (!tileIndexes.hasOwnProperty(layer)) {
       send404(res);
@@ -94,7 +95,7 @@ const startService = async () => {
       res.json({});
       return;
     }
-    const vectorTiles = tile.features as IVectorTile[];
+    const vectorTiles = tile.features;
     res.json(toFeatureCollection(vectorTiles, x, y, z, extent));
   });
 
@@ -103,7 +104,7 @@ const startService = async () => {
     if (!tile || !tile.features) {
       return;
     }
-    const vectorTiles = tile.features as IVectorTile[];
+    const vectorTiles = tile.features;
     res.json(vectorTiles);
   });
 
@@ -113,12 +114,12 @@ const startService = async () => {
       return;
     }
 
-    var data;
+    var geojsonData = { stations: tile };
     if(req.params.layer =="romania-stop-map") {  // workarround that needs to be removed later
-      data = Buffer.from(vtpbf.fromGeojsonVt({ stops: tile }));
-    } else {
-      data = Buffer.from(vtpbf.fromGeojsonVt({ stations: tile }));
+      geojsonData = { stops: tile };
     }
+    const data = Buffer.from(vtpbf.fromGeojsonVt(geojsonData, { extent: 2048 }));
+
     res.setHeader("Content-Type", "application/x-protobuf");
     res.setHeader("Content-Encoding", "gzip");
 

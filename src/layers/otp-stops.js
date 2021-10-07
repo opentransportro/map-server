@@ -1,13 +1,9 @@
 import geojsonvt from 'geojson-vt';
-import { post } from "requestretry";
 import _ from 'lodash';
-import { ILayer, ILayerInfo, LayerFormat } from './layer';
+import axios from 'axios';
+import axiosRetry from 'axios-retry';
 
-declare global {
-  interface Array<T> {
-    uniq(): Array<T>;
-  }
-}
+axiosRetry(axios, { retries: 3, retryDelay: axiosRetry.exponentialDelay });
 
 Array.prototype.flatMap = function (lambda) {
   return [].concat.apply([], this.map(lambda));
@@ -17,7 +13,7 @@ Array.prototype.uniq = function () {
   return _.uniqWith(this, _.isEqual)
 };
 
-const stopQuery: String = `
+const stopQuery = `
   query stops {
     stops{
       gtfsId
@@ -66,54 +62,31 @@ const stopMapper = data => ({
 })
 
 
-const getTileIndex = (url, query, mapper, callback) => {
-  post({
-    url: url,
-    body: query,
-    maxAttempts: 120,
-    retryDelay: 30000,
-    method: 'POST',
-    headers: {
+export class StopsLayer  {
+
+  async init(uri) {
+    const result = await axios.post(uri, stopQuery, {headers:{
       'Content-Type': 'application/graphql',
       'OTPTimeout': '60000',
       'OTPMaxResolves': '100000000'
-    }
-  }, function (err, res, body) {
-    if (err) {
-      console.log(err)
-      callback(err);
-      return;
-    }
-    callback(null, geojsonvt(mapper(JSON.parse(body)), {
+    }});
+
+    this.stopTileIndex = geojsonvt(stopMapper(result.data), {
       maxZoom: 22,
       extent: 4096,
       debug: 0,
       generateId: true,
       indexMaxZoom: 4,
-      buffer: 512,
+      buffer: 4096,
       indexMaxPoints: 100000,
       solidChildren: false,
-    }));
-  })
-}
-
-export class StopsLayer implements ILayer {
-  stopTileIndex: any;
-
-  init(uri: string, callback?: Function) {
-    getTileIndex(uri, stopQuery, stopMapper, (err: any, stopTileIndex: any) => {
-      if (err) {
-        callback(err);
-        return;
-      }
-      this.stopTileIndex = stopTileIndex;
-      console.log("stops loaded from:", uri)
-      callback(null, this);
-    })
+    });
+    
+    console.log("stops loaded from:", uri)
   };
 
 
-  getTile(z: Number, x: Number, y: Number) {
+  getTile(z, x, y) {
     let stopTile = this.stopTileIndex.getTile(z, x, y)
 
     if (stopTile === null) {
@@ -123,9 +96,9 @@ export class StopsLayer implements ILayer {
     return stopTile;
   }
 
-  getInfo(): ILayerInfo {
+  getInfo() {
     return {
-      format: LayerFormat.PBF,
+      format: "pbf",
       maxzoom: 20,
       minzoom: 0,
       vector_layers: [{
