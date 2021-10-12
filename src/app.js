@@ -50,7 +50,7 @@ const startService = async () => {
     layer.init(process.env.OTP_URL || "https://api.opentransport.ro/routing/v1/routers/romania/index/graphql");
   })
 
-  schedule.scheduleJob('* * */6 * * *', function () {
+  schedule.scheduleJob('0 0 */6 * * *', function () {
     console.log('Updated all...' + (new Date()).toString());
     registeredLayers.forEach((registeredLayer) => {
       const { layer } = registeredLayer;
