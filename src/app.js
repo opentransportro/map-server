@@ -1,5 +1,6 @@
 import express from "express";
-import * as vtpbf from "vt-pbf";
+import {encode} from "geobuf";
+import Pbf from "pbf";
 import cors from "cors";
 import schedule from "node-schedule";
 import * as zlib from "zlib";
@@ -118,7 +119,7 @@ const startService = async () => {
     if(req.params.layer =="romania-stop-map") {  // workarround that needs to be removed later
       geojsonData = { stops: tile };
     }
-    const data = Buffer.from(vtpbf.fromGeojsonVt(geojsonData));
+    const data = Buffer.from(encode(geojsonData, new Pbf()));
 
     res.setHeader("Content-Type", "application/x-protobuf");
     res.setHeader("Content-Encoding", "gzip");
