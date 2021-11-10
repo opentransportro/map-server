@@ -51,12 +51,12 @@ const stopMapper = data => ({
       platform: stop.platformCode,
       desc: stop.desc,
       parentStation: stop.parentStation == null ? null : stop.parentStation.gtfsId,
-      type: stop.patterns == null ? null : stop.patterns.map(pattern => pattern.route.mode).uniq(),
-      patterns: stop.patterns == null ? null : stop.patterns.map(pattern => ({
+      type: stop.patterns == null ? null : stop.patterns.map(pattern => pattern.route.mode).uniq().join(","),
+      patterns: stop.patterns == null ? null : JSON.stringify(stop.patterns.map(pattern => ({
         headsign: pattern.headsign,
         type: pattern.route.mode,
         shortName: pattern.route.shortName,
-      }))
+      })))
     }
   }))
 })
