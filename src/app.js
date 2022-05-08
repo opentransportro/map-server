@@ -6,6 +6,7 @@ import * as zlib from "zlib";
 import { BikesLayer } from "./layers/otp-bikes";
 import { StopsLayer } from "./layers/otp-stops";
 import { StationLayer } from "./layers/otp-stations";
+import { PartnerPinsLayer } from "./layers/partner-pins";
 import { toFeatureCollection } from "./utils";
 
 /** GeojsonVT extent option */
@@ -26,7 +27,16 @@ const startService = async () => {
   registerLayer("romania-citybike-map", new BikesLayer());
   registerLayer("romania-stop-map", new StopsLayer());
   registerLayer("romania-station-map", new StationLayer());
+  registerLayer("romania-partners-map", new PartnerPinsLayer());
 
+  const loadData = async function loadData(layerRecords) {
+    const defaultUrl = process.env.OTP_URL || "https://api.opentransport.ro/routing/v1/routers/romania/index/graphql";
+    console.log('Updating all layers...' + (new Date()).toString());
+    await Promise.all(
+      layerRecords.map(({ layer }) => layer.init(defaultUrl))
+    );
+    console.log('Updated all layers...' + (new Date()).toString());
+  };
 
   const app = express();
   app.use(cors());
@@ -44,18 +54,13 @@ const startService = async () => {
 
   const tileIndexes = {};
 
-  registeredLayers.forEach((registeredLayer) => {
-    const { name, layer } = registeredLayer;
+  registeredLayers.forEach(({ name, layer }) => {
     tileIndexes[name] = layer;
-    layer.init(process.env.OTP_URL || "https://api.opentransport.ro/routing/v1/routers/romania/index/graphql");
-  })
+  });
+  await loadData(registeredLayers);
 
-  schedule.scheduleJob('0 0 */6 * * *', function () {
-    console.log('Updated all...' + (new Date()).toString());
-    registeredLayers.forEach((registeredLayer) => {
-      const { layer } = registeredLayer;
-      layer.init(process.env.OTP_URL || "https://api.opentransport.ro/routing/v1/routers/romania/index/graphql");
-    })
+  schedule.scheduleJob('0 0 */6 * * *', async function () {
+    await loadData(registeredLayers);
   });
 
   const send404 = (res) => {
