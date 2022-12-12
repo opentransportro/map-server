@@ -119,11 +119,11 @@ const startService = async () => {
       return;
     }
 
-    var geojsonData = { stations: tile };
+    let geojsonData = {stations: tile};
     if(req.params.layer =="romania-stop-map") {  // workarround that needs to be removed later
       geojsonData = { stops: tile };
     }
-    const data = Buffer.from(vtpbf.fromGeojsonVt(geojsonData));
+    const data = Buffer.from(vtpbf.fromGeojsonVt(geojsonData, { version: 2.1 }));
 
     res.setHeader("Content-Type", "application/x-protobuf");
     res.setHeader("Content-Encoding", "gzip");
@@ -140,4 +140,6 @@ const startService = async () => {
 };
 
 
-startService();
+startService().then(r => {
+  console.log("service started");
+});
