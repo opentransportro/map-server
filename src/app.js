@@ -6,7 +6,7 @@ import * as zlib from "zlib";
 import { BikesLayer } from "./layers/otp-bikes";
 import { StopsLayer } from "./layers/otp-stops";
 import { StationLayer } from "./layers/otp-stations";
-import { PartnerPinsLayer } from "./layers/partner-pins";
+// import { PartnerPinsLayer } from "./layers/partner-pins";
 import { toFeatureCollection } from "./utils";
 
 /** GeojsonVT extent option */
@@ -27,7 +27,7 @@ const startService = async () => {
   registerLayer("romania-citybike-map", new BikesLayer());
   registerLayer("romania-stop-map", new StopsLayer());
   registerLayer("romania-station-map", new StationLayer());
-  registerLayer("romania-partners-map", new PartnerPinsLayer());
+  // registerLayer("romania-partners-map", new PartnerPinsLayer());
 
   const loadData = async function loadData(layerRecords) {
     const defaultUrl = process.env.OTP_URL || "https://api.opentransport.ro/routing/v1/routers/romania/index/graphql";
